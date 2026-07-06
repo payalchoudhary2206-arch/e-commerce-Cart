@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ShopEase — Product Catalog</title>
+<style>
+  :root {
+    --bg: #f7f7fb;
+    --card: #ffffff;
+    --ink: #1c1c28;
+    --muted: #6b6b7b;
+    --accent: #2f5fff;
+    --accent-dark: #1c3fcc;
+    --border: #e6e6ee;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  header {
+    background: var(--ink);
+    color: #fff;
+    padding: 18px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  header h1 { font-size: 20px; letter-spacing: 0.5px; }
+  header .byline { font-size: 12px; color: #aaa; margin-top: 2px; }
+  #cartToggle {
+    background: var(--accent);
+    border: none;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    position: relative;
+  }
+  #cartCount {
+    background: #ff4747;
+    border-radius: 50%;
+    padding: 1px 7px;
+    font-size: 12px;
+    margin-left: 6px;
+  }
+
+  .layout {
+    display: flex;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+    gap: 24px;
+  }
+
+  .filters {
+    width: 200px;
+    flex-shrink: 0;
+  }
+  .filters h3 { font-size: 15px; margin-bottom: 10px; }
+  .filters button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .filters button.active {
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+  }
+
+  .grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 18px;
+  }
+
+  .product-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+  }
+  .product-card .emoji {
+    font-size: 40px;
+    text-align: center;
+    padding: 14px 0;
+    background: var(--bg);
+    border-radius: 8px;
+    margin-bottom: 10px;
+  }
+  .product-card h4 { font-size: 15px; margin-bottom: 4px; }
+  .product-card .category { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .product-card .price { font-weight: 700; font-size: 16px; margin-bottom: 10px; }
+  .product-card button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .product-card button:hover { background: var(--accent-dark); }
+
+  /* Cart drawer */
+  #cartDrawer {
+    position: fixed;
+    top: 0;
+    right: -360px;
+    width: 340px;
+    height: 100%;
+    background: white;
+    box-shadow: -4px 0 20px rgba(0,0,0,0.12);
+    transition: right 0.25s ease;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+  }
+  #cartDrawer.open { right: 0; }
+  #cartDrawer h2 { font-size: 18px; margin-bottom: 14px; }
+  #cartItems { flex: 1; overflow-y: auto; }
+  .cart-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .cart-item .qty-controls button {
+    width: 22px; height: 22px;
+    border: 1px solid var(--border);
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .cart-total {
+    border-top: 2px solid var(--ink);
+    padding-top: 12px;
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    font-size: 16px;
+  }
+  #closeCart {
+    align-self: flex-end;
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    margin-bottom: 10px;
+  }
+  .empty-cart { color: var(--muted); text-align: center; margin-top: 40px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>ShopEase</h1>
+    <div class="byline">Built by Shourya Aggarwal</div>
+  </div>
+  <button id="cartToggle">🛒 Cart <span id="cartCount">0</span></button>
+</header>
+
+<div class="layout">
+  <aside class="filters">
+    <h3>Categories</h3>
+    <div id="filterList"></div>
+  </aside>
+
+  <main class="grid" id="productGrid"></main>
+</div>
+
+<div id="cartDrawer">
+  <button id="closeCart">✕</button>
+  <h2>Your Cart</h2>
+  <div id="cartItems"></div>
+  <div class="cart-total">
+    <span>Total</span>
+    <span id="cartTotal">₹0</span>
+  </div>
+</div>
+
+<script>
+  // ---------- 1. DATA ----------
+  // In a real app this would come from a backend/database.
+  // Here we hardcode it so the app works standalone.
+  const products = [
+    { id: 1, name: "boAt Rockerz 255 Earbuds", category: "Electronics", price: 1499, emoji: "🎧" },
+    { id: 2, name: "Noise ColorFit Pulse Smartwatch", category: "Electronics", price: 2999, emoji: "⌚" },
+    { id: 3, name: "JBL Go 3 Bluetooth Speaker", category: "Electronics", price: 1899, emoji: "🔊" },
+    { id: 4, name: "Redmi Power Bank 20000mAh", category: "Electronics", price: 1699, emoji: "🔋" },
+    { id: 5, name: "Logitech Wireless Mouse", category: "Electronics", price: 799, emoji: "🖱️" },
+    { id: 6, name: "Puma Running Shoes", category: "Fashion", price: 2199, emoji: "👟" },
+    { id: 7, name: "Levi's Denim Jacket", category: "Fashion", price: 2799, emoji: "🧥" },
+    { id: 8, name: "Wildcraft Travel Backpack", category: "Fashion", price: 1299, emoji: "🎒" },
+    { id: 9, name: "Fastrack Analog Watch", category: "Fashion", price: 1599, emoji: "⌚" },
+    { id: 10, name: "Ray-Ban Style Sunglasses", category: "Fashion", price: 999, emoji: "🕶️" },
+    { id: 11, name: "Prestige Coffee Maker", category: "Home", price: 2499, emoji: "☕" },
+    { id: 12, name: "Philips LED Table Lamp", category: "Home", price: 899, emoji: "💡" },
+    { id: 13, name: "Hawkins Cookware Set", category: "Home", price: 3299, emoji: "🍳" },
+    { id: 14, name: "Milton Insulated Water Bottle", category: "Home", price: 599, emoji: "🍶" },
+    { id: 15, name: "Bajaj Room Heater", category: "Home", price: 1999, emoji: "🔥" },
+  ];
+
+  // ---------- 2. STATE ----------
+  // cart is an object: { productId: quantity }
+  let cart = {};
+  let activeCategory = "All";
+
+  // ---------- 3. RENDER FILTERS ----------
+  function renderFilters() {
+    const categories = ["All", ...new Set(products.map(p => p.category))];
+    const filterList = document.getElementById("filterList");
+    filterList.innerHTML = categories.map(cat => `
+      <button class="${cat === activeCategory ? 'active' : ''}" data-cat="${cat}">
+        ${cat}
+      </button>
+    `).join("");
+
+    // attach click listeners to each filter button
+    filterList.querySelectorAll("button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        activeCategory = btn.dataset.cat;
+        renderFilters();  // re-render so the "active" style updates
+        renderProducts(); // re-render grid with the new filter
+      });
+    });
+  }
+
+  // ---------- 4. RENDER PRODUCT GRID ----------
+  function renderProducts() {
+    const grid = document.getElementById("productGrid");
+    const filtered = activeCategory === "All"
+      ? products
+      : products.filter(p => p.category === activeCategory);
+
+    grid.innerHTML = filtered.map(p => `
+      <div class="product-card">
+        <div class="emoji">${p.emoji}</div>
+        <h4>${p.name}</h4>
+        <div class="category">${p.category}</div>
+        <div class="price">₹${p.price}</div>
+        <button data-id="${p.id}">Add to Cart</button>
+      </div>
+    `).join("");
+
+    grid.querySelectorAll("button").forEach(btn => {
+      btn.addEventListener("click", () => addToCart(Number(btn.dataset.id)));
+    });
+  }
+
+  // ---------- 5. CART LOGIC ----------
+  function addToCart(id) {
+    cart[id] = (cart[id] || 0) + 1;
+    renderCart();
+  }
+
+  function changeQty(id, delta) {
+    cart[id] = (cart[id] || 0) + delta;
+    if (cart[id] <= 0) delete cart[id];
+    renderCart();
+  }
+
+  function renderCart() {
+    const cartItems = document.getElementById("cartItems");
+    const ids = Object.keys(cart);
+
+    if (ids.length === 0) {
+      cartItems.innerHTML = `<div class="empty-cart">Your cart is empty</div>`;
+    } else {
+      cartItems.innerHTML = ids.map(id => {
+        const product = products.find(p => p.id === Number(id));
+        return `
+          <div class="cart-item">
+            <div>${product.emoji} ${product.name}</div>
+            <div class="qty-controls">
+              <button data-id="${id}" data-delta="-1">−</button>
+              ${cart[id]}
+              <button data-id="${id}" data-delta="1">+</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      cartItems.querySelectorAll("button").forEach(btn => {
+        btn.addEventListener("click", () =>
+          changeQty(Number(btn.dataset.id), Number(btn.dataset.delta))
+        );
+      });
+    }
+
+    // total items (for the badge) and total price (for the footer)
+    const totalItems = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
+    const totalPrice = ids.reduce((sum, id) => {
+      const product = products.find(p => p.id === Number(id));
+      return sum + product.price * cart[id];
+    }, 0);
+
+    document.getElementById("cartCount").textContent = totalItems;
+    document.getElementById("cartTotal").textContent = "₹" + totalPrice;
+  }
+
+  // ---------- 6. CART DRAWER OPEN/CLOSE ----------
+  document.getElementById("cartToggle").addEventListener("click", () => {
+    document.getElementById("cartDrawer").classList.add("open");
+  });
+  document.getElementById("closeCart").addEventListener("click", () => {
+    document.getElementById("cartDrawer").classList.remove("open");
+  });
+
+  // ---------- 7. INITIAL RENDER ----------
+  renderFilters();
+  renderProducts();
+  renderCart();
+</script>
+
+</body>
+</html>
